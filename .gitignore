@@ -1,0 +1,8 @@
+.env.example
+.env
+ecosystem.config.js
+*.pyc
+.pyc
+/tests
+/__pycache__/
+/__pycache__
