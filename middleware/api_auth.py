@@ -3,7 +3,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import HTTPException, Request
+from fastapi import Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
@@ -19,11 +20,17 @@ class APIKeyMiddleware(BaseHTTPMiddleware):
 
         expected = os.getenv(self.env_var)
         if not expected:
-            raise HTTPException(status_code=500, detail="Server API key is not configured")
+            return JSONResponse(
+                status_code=500,
+                content={"detail": "Server API key is not configured"},
+            )
 
         provided = request.headers.get(self.header_name)
         if not provided or provided != expected:
-            raise HTTPException(status_code=401, detail="Invalid API key")
+            return JSONResponse(
+                status_code=401,
+                content={"detail": "Invalid API key"},
+            )
 
         return await call_next(request)
 

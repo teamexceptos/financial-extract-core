@@ -6,3 +6,4 @@ ecosystem.config.js
 /tests
 /__pycache__/
 /__pycache__
+.venv/
