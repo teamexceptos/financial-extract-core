@@ -43,7 +43,7 @@ async def cross_reference_receipt_file(address: str = Form(...), receipt_file: U
 
     file_bytes = await receipt_file.read()
     try:
-        extracted_text, _source = extract_receipt_text_from_file_bytes(
+        extracted_text, _source, _data = extract_receipt_text_from_file_bytes(
             file_bytes,
             filename=receipt_file.filename,
             content_type=receipt_file.content_type,
@@ -58,7 +58,7 @@ async def cross_reference_receipt_file(address: str = Form(...), receipt_file: U
 async def extract_receipt_text(receipt_file: UploadFile = File(...)):
     file_bytes = await receipt_file.read()
     try:
-        extracted_text, source = extract_receipt_text_from_file_bytes(
+        extracted_text, source, data = extract_receipt_text_from_file_bytes(
             file_bytes,
             filename=receipt_file.filename,
             content_type=receipt_file.content_type,
@@ -66,7 +66,7 @@ async def extract_receipt_text(receipt_file: UploadFile = File(...)):
     except ReceiptExtractionError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    return {"source": source, "text": extracted_text}
+    return {"source": source, "text": extracted_text, "data": data}
 
 
 @router.get("/google-reverse", response_model=GoogleLatLngVerifyResult)

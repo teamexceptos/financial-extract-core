@@ -3,9 +3,11 @@ from __future__ import annotations
 import io
 import re
 from difflib import SequenceMatcher
+from typing import Any
 
 from models.verification import AddressInput, ReceiptCrossRefResult
 from services.address import normalize_address
+from utils.receipt_metadata import extract_receipt_metadata_from_text
 
 
 class ReceiptExtractionError(RuntimeError):
@@ -17,7 +19,7 @@ def extract_receipt_text_from_file_bytes(
     *,
     filename: str | None = None,
     content_type: str | None = None,
-) -> tuple[str, str]:
+) -> tuple[str, str, dict[str, Any]]:
     if not file_bytes:
         raise ReceiptExtractionError("Empty file")
 
@@ -41,7 +43,7 @@ def extract_receipt_text_from_file_bytes(
 
         text = "\n".join([t for t in extracted_pages if t.strip()]).strip()
         if len(text) >= 50:
-            return text, "pdf_text"
+            return text, "pdf_text", extract_receipt_metadata_from_text(text)
 
         try:
             from pdf2image import convert_from_bytes
@@ -68,7 +70,7 @@ def extract_receipt_text_from_file_bytes(
         ocr_text = "\n".join([t for t in ocr_parts if t.strip()]).strip()
         if not ocr_text:
             raise ReceiptExtractionError("No text extracted from PDF")
-        return ocr_text, "pdf_ocr"
+        return ocr_text, "pdf_ocr", extract_receipt_metadata_from_text(ocr_text)
 
     try:
         from PIL import Image
@@ -92,7 +94,7 @@ def extract_receipt_text_from_file_bytes(
 
     if not text:
         raise ReceiptExtractionError("No text extracted from image")
-    return text, "image_ocr"
+    return text, "image_ocr", extract_receipt_metadata_from_text(text)
 
 
 def cross_reference_receipt_address_service(address: AddressInput, receipt_text: str) -> ReceiptCrossRefResult:
