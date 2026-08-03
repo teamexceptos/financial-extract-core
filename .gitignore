@@ -1,6 +1,6 @@
 .env.example
 .env
-ecosystem.config.js
+logs/
 *.pyc
 .pyc
 /tests
