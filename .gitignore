@@ -7,3 +7,9 @@ ecosystem.config.js
 /__pycache__/
 /__pycache__
 .venv/
+
+
+# Added by cargo
+
+/target
+Cargo.lock

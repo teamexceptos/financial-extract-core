@@ -9,7 +9,6 @@ from models.verification import AddressInput, ReceiptCrossRefResult
 from services.address import normalize_address
 from utils.receipt_metadata import extract_receipt_metadata_from_text
 
-
 class ReceiptExtractionError(RuntimeError):
     pass
 
@@ -28,49 +27,55 @@ def extract_receipt_text_from_file_bytes(
     is_pdf = name.endswith(".pdf") or ctype == "application/pdf" or file_bytes[:4] == b"%PDF"
 
     if is_pdf:
+        from services.pdf_inspector_service import read_pdf_bytes_with_pdf_inspector, PdfInspectorExtractionError
+        
         try:
-            import pdfplumber
+            result = read_pdf_bytes_with_pdf_inspector(file_bytes)
+        except PdfInspectorExtractionError as e:
+            raise ReceiptExtractionError(str(e)) from e
         except Exception as e:
-            raise ReceiptExtractionError("pdfplumber is not available") from e
+            raise ReceiptExtractionError("Failed to extract from PDF using pdf-inspector") from e
+            
+        if not result.needs_ocr:
+            return result.text, result.source, result.metadata
 
-        extracted_pages: list[str] = []
-        try:
-            with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-                for page in pdf.pages:
-                    extracted_pages.append(page.extract_text() or "")
-        except Exception as e:
-            raise ReceiptExtractionError("Failed to read PDF") from e
-
-        text = "\n".join([t for t in extracted_pages if t.strip()]).strip()
-        if len(text) >= 50:
-            return text, "pdf_text", extract_receipt_metadata_from_text(text)
-
+        # Fallback to OCR for pages that need it
         try:
             from pdf2image import convert_from_bytes
-        except Exception as e:
-            raise ReceiptExtractionError("pdf2image is not available for PDF OCR fallback") from e
-
-        try:
             import pytesseract
         except Exception as e:
-            raise ReceiptExtractionError("pytesseract is not available for PDF OCR fallback") from e
-
+            # If OCR is not available but we have some text, return it
+            if result.text and len(result.text) >= 50:
+                return result.text, result.source, result.metadata
+            raise ReceiptExtractionError("PDF requires OCR but pdf2image or pytesseract is not available") from e
+            
         try:
             images = convert_from_bytes(file_bytes)
         except Exception as e:
             raise ReceiptExtractionError("Failed to rasterize PDF for OCR (poppler may be missing)") from e
-
+            
         ocr_parts: list[str] = []
-        for image in images:
-            try:
-                ocr_parts.append(pytesseract.image_to_string(image) or "")
-            except Exception:
-                continue
-
+        for i, image in enumerate(images):
+            # Only OCR the pages that actually need it (0-indexed)
+            if not result.pages_needing_ocr or i in result.pages_needing_ocr or result.pdf_type in {"scanned", "image_based"}:
+                try:
+                    ocr_parts.append(pytesseract.image_to_string(image) or "")
+                except Exception:
+                    continue
+            else:
+                # If page didn't need OCR, we can't easily get page text from pdf-inspector directly right now,
+                # but pdf-inspector already extracted all text it could.
+                # To keep it simple, we just OCR it anyway if it's mixed, or we could just append it.
+                pass
+                
         ocr_text = "\n".join([t for t in ocr_parts if t.strip()]).strip()
-        if not ocr_text:
+        
+        # Combine text from inspector and OCR
+        combined_text = (result.text + "\n\n" + ocr_text).strip()
+        if not combined_text:
             raise ReceiptExtractionError("No text extracted from PDF")
-        return ocr_text, "pdf_ocr", extract_receipt_metadata_from_text(ocr_text)
+            
+        return combined_text, "pdf_inspector_with_ocr", extract_receipt_metadata_from_text(combined_text)
 
     try:
         from PIL import Image
