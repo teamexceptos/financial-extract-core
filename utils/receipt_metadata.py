@@ -6,6 +6,123 @@ from typing import Any
 from utils.date_recency import compute_date_recency
 
 
+CREDIT_KEYWORDS = (
+    "credit", "cr", "transfer from", "trffrm", "trf from", "tnf-",
+    "received from", "deposit", "refund", "reversal", "inward",
+    "paid by", "interest capitalised", "cash transfer for"
+)
+
+DEBIT_KEYWORDS = (
+    "debit", "dr", "transfer to", "trf to", "mobile trf to", "payment", "payment for",
+    "payment to", "payment amount", "order amount", "usdt topup", "ussd topup", "mob topup", "topup",
+    "charge", "charges", "fee", "purchase", "pos pur", "pos trf",
+    "web pur", "vat", "stamp duty", "stamp duties", "sms alert charge",
+    "withdraw", "withdrawn", "paid", "paid to", "outward", "commission", "airtime"
+)
+
+
+# ---------------------------------------------------------------------------
+# Category mapping — ordered from most-specific to most-generic
+# ---------------------------------------------------------------------------
+
+_CATEGORY_RULES: list[tuple[str, list[str]]] = [
+    ("Utility",       ["electric", "nepa", "meter", "token", "phcn", "ekedc", "ibedc", "phed",
+                       "water board", "water bill", "lwsc", "ikeja electric", "aedc", "bedc"]),
+    ("Cable TV",      ["dstv", "gotv", "startimes", "cable tv", "cable subscription", "multichoice"]),
+    ("Internet",      ["internet", "broadband", "fibre", "fiber", "wifi subscription", "data subscription",
+                       "spectranet", "smile", "ipnx"]),
+    ("Cooking Gas",   ["cooking gas", "lpg", "gas refill", "cylinder refill"]),
+    ("Water",         ["water supply", "water token"]),
+    ("Airtime",       ["airtime", "recharge", "vtu", "airtel", "9mobile", "etisalat",
+                       "mtn airtime", "glo airtime"]),
+    ("Data Bundle",   ["data bundle", "data plan", "data top", "data purchase"]),
+    ("Salary",        ["salary", "payroll", "wages", "staff salary"]),
+    ("Loan",          ["loan disbursement", "loan repayment", "loan deduction", "credit facility"]),
+    ("School Fees",   ["school fee", "school stipend", "tuition", "bursary"]),
+    ("POS Purchase",  ["pos pur", "pos payment", "pos trf", "payment for goods", "payment for service"]),
+    ("ATM",           ["atm withdrawal", "atm cash", "cash withdrawal"]),
+    ("Transfer",      ["transfer", "trf", "nip/", "nip ", "nibss", "nipb",
+                       "gtw", "api", "br/", "uss", "ussd transfer", "mobile transfer",
+                       "transfer between customers", "intra bank", "inter bank",
+                       "000013", "000023",          # NIBSS session ID prefixes
+                       "to opay", "to palmpay", "to moniepoint", "to providus",
+                       "to mfb", "to zenith", "to gtb", "to uba", "to access",
+                       "from opay", "from palmpay", "from moniepoint",
+                       "guide to", "cash to", "car to", "school stipend to"]),
+    ("Bank Charge",   ["vat", "stamp duty", "sms charge", "sms alert", "maintenance fee",
+                       "card maintenance", "account maintenance", "commission",
+                       "recover partial", "recover charge"]),
+]
+
+
+
+def categorise_transaction(description: str, receipt_type: str | None = None) -> str | None:
+    """
+    Return a human-readable category for a transaction.
+
+    Tries receipt_type first (already computed by extract_receipt_metadata_from_text),
+    then falls back to keyword matching on *description*.
+
+    Returns None when nothing matches (rather than a noisy "Other" label).
+    """
+    # Map fine-grained receipt_type → category
+    _RECEIPT_TYPE_CATEGORY: dict[str, str] = {
+        "electricity_prepaid": "Utility",
+        "electricity_postpaid": "Utility",
+        "electricity": "Utility",
+        "water": "Water",
+        "waste_management": "Utility",
+        "cable_tv": "Cable TV",
+        "internet_data": "Internet",
+        "cooking_gas_refill": "Cooking Gas",
+    }
+    if receipt_type and receipt_type in _RECEIPT_TYPE_CATEGORY:
+        return _RECEIPT_TYPE_CATEGORY[receipt_type]
+
+    text = description.lower()
+    for category, keywords in _CATEGORY_RULES:
+        if any(kw in text for kw in keywords):
+            return category
+
+    return None
+
+
+def classify_transaction_type(text: str, amount_val: str | None = None) -> tuple[str | None, str | None, str | None]:
+    """
+    Classifies a transaction description/text and amount as credit or debit based on symbols & keywords.
+    Returns (transaction_type, debit_amount, credit_amount).
+    """
+    text_clean = text.strip()
+    text_lower = text_clean.lower()
+
+    ttype: str | None = None
+    # 1. Symbol checks
+    if re.search(r"(?:\+|\bCR\b|\(CR\))", text_clean, re.IGNORECASE):
+        ttype = "credit"
+    elif re.search(r"(?:-|\bDR\b|\(DR\)|\(\d+(?:\.\d+)?\))", text_clean, re.IGNORECASE):
+        ttype = "debit"
+
+    # 2. Description keyword checks if symbol check didn't specify
+    if not ttype:
+        has_credit = any(kw in text_lower for kw in CREDIT_KEYWORDS)
+        has_debit = any(kw in text_lower for kw in DEBIT_KEYWORDS)
+        if has_credit and not has_debit:
+            ttype = "credit"
+        elif has_debit and not has_credit:
+            ttype = "debit"
+        elif has_credit and has_debit:
+            # Prefer "transfer from" / inward signals over "transfer to" / outward signals
+            if "transfer from" in text_lower or "tnf-" in text_lower or "inward" in text_lower:
+                ttype = "credit"
+            else:
+                ttype = "debit"
+
+    debit_amount: str | None = amount_val if ttype == "debit" else None
+    credit_amount: str | None = amount_val if ttype == "credit" else None
+
+    return ttype, debit_amount, credit_amount
+
+
 def extract_receipt_metadata_from_text(text: str) -> dict[str, Any]:
     receipt_number: str | None = None
     date_iso: str | None = None
@@ -42,7 +159,7 @@ def extract_receipt_metadata_from_text(text: str) -> dict[str, Any]:
         except Exception:
             date_iso = raw_date
     else:
-        dt_match = re.search(r"(?i)\b(?:transaction\s*time|completion\s*time)\s*(?::|-)?\s*([^\n\r]+)", text)
+        dt_match = re.search(r"(?i)\b(?:transaction\s*time|completion\s*time)\s*(?::|-)?s*([^\n\r]+)", text)
         if dt_match:
             raw_dt = dt_match.group(1).strip()
             try:
@@ -125,12 +242,21 @@ def extract_receipt_metadata_from_text(text: str) -> dict[str, Any]:
     elif re.search(r"\bgas\b|\bcooking\s*gas\b|\blpg\b|\bcylinder\b|\brefill\b", text_l):
         receipt_type = "cooking_gas_refill"
 
+    transaction_type, debit, credit = classify_transaction_type(text, amount)
+    category = categorise_transaction(text, receipt_type)
+
     return {
         "address": address,
         "amount": amount,
+        "credit": credit,
         "date": date_iso,
         "days_from_today": days_from_today,
+        "debit": debit,
         "is_within_3_months": is_within_3_months,
         "receipt_number": receipt_number,
         "receipt_type": receipt_type,
+        "transaction_type": transaction_type,
+        # new fields
+        "category": category,
+        "transaction_number": receipt_number,   # alias — same value, clearer name for bank statements
     }

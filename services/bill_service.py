@@ -1,3 +1,10 @@
+from __future__ import annotations
+
+"""
+Backwards compatibility module for bill_service.
+Renamed to services.transaction_service.
+"""
+
 from services.transaction_service import (
     export_bills_from_data_dir,
     export_transactions_from_data_dir,

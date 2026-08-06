@@ -52,4 +52,3 @@ class GoogleLatLngVerifyResult(BaseModel):
     formatted_address: str | None = None
     place_id: str | None = None
     raw: dict[str, Any] | None = None
-

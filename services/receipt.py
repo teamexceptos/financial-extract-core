@@ -74,8 +74,11 @@ def extract_receipt_text_from_file_bytes(
         combined_text = (result.text + "\n\n" + ocr_text).strip()
         if not combined_text:
             raise ReceiptExtractionError("No text extracted from PDF")
-            
-        return combined_text, "pdf_inspector_with_ocr", extract_receipt_metadata_from_text(combined_text)
+
+
+        receipt_metadata = extract_receipt_metadata_from_text(combined_text)
+
+        return combined_text, "pdf_inspector_with_ocr", receipt_metadata
 
     try:
         from PIL import Image

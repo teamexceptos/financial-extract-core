@@ -13,3 +13,5 @@ logs/
 
 /target
 Cargo.lock
+/data
+/output
