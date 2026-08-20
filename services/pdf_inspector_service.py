@@ -11,7 +11,7 @@ class PdfInspectorExtractionError(RuntimeError):
     pass
 
 
-@dataclass(slots=True)
+@dataclass
 class PdfInspectorReadResult:
     text: str
     markdown: str | None
@@ -81,16 +81,20 @@ def read_pdf_bytes_with_pdf_inspector(
     if needs_ocr and len(text) < min_text_length:
         source = "pdf_inspector_partial_text"
 
+    confidence_val = float(getattr(result, "confidence", 0.0))
+    metadata = extract_receipt_metadata_from_text(text)
+    metadata["confidence"] = confidence_val
+
     return PdfInspectorReadResult(
         text=text,
         markdown=markdown if markdown else None,
         source=source,
         pdf_type=pdf_type,
-        confidence=float(getattr(result, "confidence", 0.0)),
+        confidence=confidence_val,
         pages_needing_ocr=pages_needing_ocr,
         needs_ocr=needs_ocr,
         is_complex_layout=bool(getattr(result, "is_complex_layout", False)),
-        metadata=extract_receipt_metadata_from_text(text),
+        metadata=metadata,
     )
 
 
