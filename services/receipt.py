@@ -18,6 +18,7 @@ def extract_receipt_text_from_file_bytes(
     *,
     filename: str | None = None,
     content_type: str | None = None,
+    actual_file: Any | None = None,
 ) -> tuple[str, str, dict[str, Any]]:
     if not file_bytes:
         raise ReceiptExtractionError("Empty file")

@@ -6,8 +6,6 @@ Renamed to services.transaction_service.
 """
 
 from services.transaction_service import (
-    export_bills_from_data_dir,
-    export_transactions_from_data_dir,
     extract_bills_from_data_dir,
     extract_bills_from_file,
     extract_bills_from_text,
@@ -20,8 +18,6 @@ from services.transaction_service import (
 )
 
 __all__ = [
-    "export_bills_from_data_dir",
-    "export_transactions_from_data_dir",
     "extract_bills_from_data_dir",
     "extract_bills_from_file",
     "extract_bills_from_text",

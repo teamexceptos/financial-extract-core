@@ -43,10 +43,26 @@ class ReceiptRecord(BaseModel):
     metadata: ReceiptDetail
 
 
+class TransactionSummary(BaseModel):
+    account_name: str | None = Field(None, description="Account holder or business name")
+    account_number: str | None = Field(None, description="Bank account number or wallet ID")
+    account_type: str | None = Field(None, description="Account type, e.g. Savings, Current, Wallet")
+    currency: str | None = Field(None, description="Account currency, e.g. NGN, USD")
+    open_balance: str | None = Field(None, description="Opening balance (convenience alias)")
+    opening_balance: str | None = Field(None, description="Opening balance")
+    closing_balance: str | None = Field(None, description="Closing balance")
+    total_debit: str | None = Field(None, description="Total debit amount across period")
+    total_credit: str | None = Field(None, description="Total credit amount across period")
+
+
 class TransactionListResponse(BaseModel):
+    raw_text: str | None = None
     source: str
     total: int = Field(ge=0)
     only_bills: bool = False
+    detected_bank: str | None = Field(None, description="Auto-detected bank code, e.g. 'opay', 'gtbank'")
+    confidence: float | None = Field(None, description="PDF extraction confidence from pdf-inspector (0.0–1.0)")
+    summary: TransactionSummary | None = Field(None, description="Account and transaction summary details if available")
     transactions: list[TransactionRecord] = Field(default_factory=list)
     csv_path: str | None = None
 
