@@ -1,6 +1,6 @@
 # Financial Extractor Core
 
-Financial Extractor Core is a high-performance backend service built on top of **FastAPI** with **Rust extensions (compiled via Maturin)** for lightning-fast parsing, text processing, and analysis. It allows users to extract transaction logs, receipts, and utility bills from PDFs, text, and images, as well as perform various verification tasks like address matching, reverse geocoding, and transaction auditing.
+Financial Extractor Core is a high-performance backend service built on top of **FastAPI** with **Rust extensions (compiled via Maturin)** for lightning-fast parsing, text processing, and analysis. It allows users to extract transaction logs (from important Nigerian banks, which include OPay, GTBank, PalmPay, Moniepoint, UBA, Access Bank, and more.), receipts, and utility bills from PDFs, text, and images, as well as perform various verification tasks like address matching, reverse geocoding, and transaction auditing.
 
 ---
 
@@ -45,15 +45,15 @@ financial-extractor-core/
 
 ## 🛠️ Prerequisites
 
-Ensure you have the following installed on your system:
+Ensure you have the following installed:
 
-1. **Python**: Version 3.9 or higher.
-2. **Rust & Cargo**: Required to compile the performance extensions. Install via [rustup](https://rustup.rs/).
-3. **Tesseract OCR**: Required for OCR capabilities on scanned image documents.
-   - **Mac (Homebrew)**: `brew install tesseract`
+1. **Python**: 3.9 or higher.
+2. **Rust & Cargo**: Required to compile the Rust extension. Install via [rustup](https://rustup.rs/).
+3. **Tesseract OCR**: For scanned image/PDF extraction.
+   - **Mac**: `brew install tesseract`
    - **Debian/Ubuntu**: `sudo apt-get install tesseract-ocr`
-4. **Poppler**: Required by `pdf2image` to convert PDFs to images for OCR when necessary.
-   - **Mac (Homebrew)**: `brew install poppler`
+4. **Poppler**: Required by `pdf2image` for PDF-to-image conversion.
+   - **Mac**: `brew install poppler`
    - **Debian/Ubuntu**: `sudo apt-get install poppler-utils`
 
 ---
@@ -77,19 +77,12 @@ GOOGLE_MAPS_API_KEY="your_google_maps_api_key"
 ```
 
 ### 3. Build & Install Dependencies
-It's highly recommended to use a virtual environment:
 ```bash
-# Create and activate virtual environment
 python3 -m venv .venv
 source .venv/bin/activate
 
-# Install requirements
 pip install -r requirements.txt
-
-# Install Maturin for compiling Rust modules
 pip install maturin
-
-# Build and install the Rust extension in development mode
 maturin develop
 ```
 
@@ -97,15 +90,13 @@ maturin develop
 
 ## 🖥️ Running the Application
 
-### Running Locally (Development)
-Start the FastAPI server with auto-reload:
+### Development
 ```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-Visit the interactive Swagger docs at: [http://localhost:8000/docs](http://localhost:8000/docs)
+Interactive docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
-### Running in Production (PM2)
-Manage the process in background mode using the configured PM2 profile:
+### Production (PM2)
 ```bash
 pm2 start ecosystem.config.js
 ```
@@ -122,8 +113,7 @@ pm2 start ecosystem.config.js
 ### 📄 Document Extraction
 | Endpoint | Method | Description |
 |---|---|---|
-| `/transactions/extract` | `POST` | Accepts a PDF/Image file and extracts all transactions. |
-| `/transactions/bills` | `POST` | Accepts a PDF/Image and filters specifically for bill-like transactions. |
+| `/receipts/extract` | `POST` | Extract structured data from a single receipt PDF or image. |
 
 ### 🔍 Verification & Audit
 | Endpoint | Method | Description |
@@ -141,7 +131,23 @@ pm2 start ecosystem.config.js
 
 ## 🧪 Testing
 
-To run the automated test suite, execute:
+Run the full test suite:
 ```bash
 pytest
 ```
+
+Run only the per-bank API integration tests (requires sample PDFs in `data/`):
+```bash
+pytest tests/test_extraction_summary.py -v
+```
+
+The integration tests in `tests/test_extraction_summary.py` cover every supported bank and assert exact values for `detected_bank`, `confidence`, and all `summary` fields. Update this file when new banks are added or statement formats change — do not create new one-off scripts.
+
+---
+
+## ➕ Adding a New Bank
+
+1. Create `services/banks/ng/<bank_code>.py` extending `BaseBankExtractor`.
+2. Implement `detect(text)`, `extract_summary(text)`, and `extract(text, ...)`.
+3. Register the extractor in `services/banks/ng/__init__.py` (`_EXTRACTORS` list).
+4. Add a corresponding test block in `tests/test_extraction_summary.py`.
