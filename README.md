@@ -113,7 +113,7 @@ pm2 start ecosystem.config.js
 ### 📄 Document Extraction
 | Endpoint | Method | Description |
 |---|---|---|
-| `/receipts/extract` | `POST` | Extract structured data from a single receipt PDF or image. |
+| `/transactions/extract` | `POST` | Extract structured data from a single receipt PDF or image. |
 
 ### 🔍 Verification & Audit
 | Endpoint | Method | Description |
