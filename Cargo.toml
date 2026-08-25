@@ -1,10 +1,10 @@
 [package]
-name = "bill-extractor-core"
+name = "financial-extractor-core"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "bill_extractor_core"
+name = "financial_extractor_core"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]

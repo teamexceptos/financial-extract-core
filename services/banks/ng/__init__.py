@@ -19,12 +19,15 @@ from services.banks.ng.zenith import ZenithBankExtractor
 
 _EXTRACTORS: list[BaseBankExtractor] = [
     OPayExtractor(),
+    # Kuda precedes GTBank: Kuda statements name counterparty banks ("…/Gtbank Plc") in
+    # their opening rows, and GTBank's detect matches a bare "gtbank". Kuda's own detect
+    # requires Kuda issuer branding, so it cannot claim another bank's statement.
+    KudaExtractor(),
     GTBankExtractor(),
     PalmPayExtractor(),
     MoniepointExtractor(),
     VBankExtractor(),
     VFDExtractor(),
-    KudaExtractor(),
     UBAExtractor(),
     ParallexExtractor(),
     AccessBankExtractor(),

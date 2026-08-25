@@ -146,8 +146,8 @@ def write_transactions_to_csv(
 
     fieldnames = [
         "source", "description", "transaction_number", "amount",
-        "debit", "credit", "transaction_type", "category",
-        "date", "days_from_today", "is_within_3_months",
+        "debit", "credit", "balance", "transaction_type", "category",
+        "date", "time", "days_from_today", "is_within_3_months",
     ]
     with destination.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -161,9 +161,11 @@ def write_transactions_to_csv(
                 "amount": m.amount or "",
                 "debit": m.debit or "",
                 "credit": m.credit or "",
+                "balance": m.balance or "",
                 "transaction_type": m.transaction_type or "",
                 "category": m.category or "",
                 "date": m.date or "",
+                "time": m.time or "",
                 "days_from_today": m.days_from_today if m.days_from_today is not None else "",
                 "is_within_3_months": m.is_within_3_months if m.is_within_3_months is not None else "",
             })

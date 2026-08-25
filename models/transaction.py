@@ -9,8 +9,10 @@ class TransactionMetadata(BaseModel):
     amount: str | None = None
     debit: str | None = None
     credit: str | None = None
+    balance: str | None = Field(None, description="Running account balance after the transaction")
     transaction_type: Literal["debit", "credit"] | None = None
     date: str | None = None
+    time: str | None = Field(None, description="Time of day of the transaction, HH:MM[:SS]")
     days_from_today: int | None = None
     is_within_3_months: bool | None = None
     category: str | None = None
