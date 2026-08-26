@@ -42,8 +42,6 @@ class KudaExtractor(BaseBankExtractor):
     bank_code: str = "kuda"
     aliases: tuple[str, ...] = ("kuda_bank", "kudamfb", "kuda_mfb")
 
-    # ------------------------------------------------------------------ detect
-
     def detect(self, text: str) -> bool:
         head = text[:8000]
         head_lower = head.lower()
@@ -57,8 +55,6 @@ class KudaExtractor(BaseBankExtractor):
 
         # The Kuda transaction table header.
         return "money in" in head_lower and "money out" in head_lower and "date/time" in head_lower
-
-    # ----------------------------------------------------------------- summary
 
     def extract_summary(self, text: str) -> TransactionSummary | None:
         head = self._normalize_text(text)[:4000]
@@ -95,8 +91,6 @@ class KudaExtractor(BaseBankExtractor):
         if not m:
             return None
         return m.group(1).strip().strip("|").strip() or None
-
-    # ---------------------------------------------------------------- extract
 
     def extract(
         self,
@@ -188,8 +182,6 @@ class KudaExtractor(BaseBankExtractor):
             "transaction_number": None,
         }
         return self._build_record(raw_row, meta, source)
-
-    # ----------------------------------------------------------------- helpers
 
     def _amount(self, raw: str | None) -> str | None:
         if not raw:
