@@ -1,9 +1,14 @@
 """Transaction extraction and processing service.
 
 Orchestrates bank statement transaction extraction through:
-  1. Ingestion: PDF (via pdf-inspector + OCR fallback), plain text, or image OCR.
+  1. Ingestion: PDF (via configurable backend: pdf-inspector or pdfplumber), plain text, or image OCR.
   2. Routing: Dispatches to per-bank extractors in ``services.banks.ng``.
   3. Summaries: Extracts statement summary metadata (opening/closing balance, totals, account name, etc.).
+
+The ``extractor`` parameter accepted by the PDF extraction functions selects
+the underlying PDF reading engine:
+  - ``"pdf_inspector"`` (default) — pdf-inspector with pdfplumber geometry fallback.
+  - ``"pdfplumber"``             — pure pdfplumber geometry; no pdf-inspector dependency.
 """
 
 from __future__ import annotations
@@ -38,8 +43,13 @@ def extract_transaction_text_from_file_bytes(
     filename: str | None = None,
     content_type: str | None = None,
     actual_file: Any | None = None,
+    extractor: str = "pdf_inspector",
 ) -> tuple[str, str, dict[str, Any]]:
-    """Extract raw text from uploaded file bytes."""
+    """Extract raw text from uploaded file bytes.
+
+    Args:
+        extractor: PDF backend — ``"pdf_inspector"`` (default) or ``"pdfplumber"``.
+    """
     from services.receipt import extract_receipt_text_from_file_bytes
 
     return extract_receipt_text_from_file_bytes(
@@ -47,6 +57,7 @@ def extract_transaction_text_from_file_bytes(
         filename=filename,
         content_type=content_type,
         actual_file=actual_file,
+        backend=extractor,
     )
 
 
@@ -103,13 +114,19 @@ def extract_transactions_from_pdf_bytes(
     source_name: str | None = None,
     only_bills: bool = False,
     actual_file: Any | None = None,
+    extractor: str = "pdf_inspector",
 ) -> tuple[str, list[TransactionRecord]]:
-    """Extract text from PDF bytes then parse transactions."""
+    """Extract text from PDF bytes then parse transactions.
+
+    Args:
+        extractor: PDF backend — ``"pdf_inspector"`` (default) or ``"pdfplumber"``.
+    """
     text, src, _meta = extract_transaction_text_from_file_bytes(
         pdf_bytes,
         filename=filename or "document.pdf",
         content_type="application/pdf",
         actual_file=actual_file,
+        extractor=extractor,
     )
     return extract_transactions_from_text(
         text,
@@ -146,8 +163,8 @@ def write_transactions_to_csv(
 
     fieldnames = [
         "source", "description", "transaction_number", "amount",
-        "debit", "credit", "transaction_type", "category",
-        "date", "days_from_today", "is_within_3_months",
+        "debit", "credit", "balance", "transaction_type", "category",
+        "date", "time", "days_from_today", "is_within_3_months",
     ]
     with destination.open("w", encoding="utf-8", newline="") as fh:
         writer = csv.DictWriter(fh, fieldnames=fieldnames)
@@ -161,9 +178,11 @@ def write_transactions_to_csv(
                 "amount": m.amount or "",
                 "debit": m.debit or "",
                 "credit": m.credit or "",
+                "balance": m.balance or "",
                 "transaction_type": m.transaction_type or "",
                 "category": m.category or "",
                 "date": m.date or "",
+                "time": m.time or "",
                 "days_from_today": m.days_from_today if m.days_from_today is not None else "",
                 "is_within_3_months": m.is_within_3_months if m.is_within_3_months is not None else "",
             })
