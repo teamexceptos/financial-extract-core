@@ -119,7 +119,6 @@ class GeneralBankExtractor(BaseBankExtractor):
 
             added = False
 
-            # ---- 1. Pipe-delimited columns ----
             if line_str.startswith("|"):
                 cols = [c.strip() for c in line_str.split("|")[1:-1]]
                 if len(cols) >= 3:
@@ -151,7 +150,6 @@ class GeneralBankExtractor(BaseBankExtractor):
             if added:
                 continue
 
-            # ---- 2. Structured space-separated row: DATE + multiple amounts ----
             struct = self._parse_structured_row(line_str)
             if struct:
                 flush_pending()
@@ -172,7 +170,6 @@ class GeneralBankExtractor(BaseBankExtractor):
                     records.append(self._build_record(line_str, meta, source))
                 continue
 
-            # ---- 3. Line starts with a date — begin multi-line accumulation ----
             date_val = self._find_date(line_str)
             if date_val and (self._line_has_amount(line_str) or pending_date is None):
                 flush_pending()
@@ -187,7 +184,6 @@ class GeneralBankExtractor(BaseBankExtractor):
                 pending_narration_parts = [desc] if desc else []
                 continue
 
-            # ---- 4. Line has a date anywhere + at least one amount ----
             if date_val and self._line_has_amount(line_str):
                 amounts = self._extract_all_amounts(line_str)
                 desc = self._strip_date_and_amounts(line_str, date_val, amounts)
@@ -209,7 +205,6 @@ class GeneralBankExtractor(BaseBankExtractor):
                     records.append(self._build_record(line_str, meta, source))
                 continue
 
-            # ---- 5. Continuation line — append to pending narration ----
             if pending_date and not self._looks_like_header(line_str):
                 pending_narration_parts.append(line_str)
             # else: ignore stray line
@@ -220,10 +215,6 @@ class GeneralBankExtractor(BaseBankExtractor):
             records = [r for r in records if self._is_bill_transaction(r)]
 
         return normalized, records
-
-    # -----------------------------
-    # Helper utilities
-    # -----------------------------
 
     def _has_amount_pattern(self, cols: list[str]) -> bool:
         for c in cols:

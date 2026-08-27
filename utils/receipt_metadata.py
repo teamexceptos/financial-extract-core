@@ -20,11 +20,6 @@ DEBIT_KEYWORDS = (
     "withdraw", "withdrawn", "paid", "paid to", "outward", "commission", "airtime"
 )
 
-
-# ---------------------------------------------------------------------------
-# Category mapping — ordered from most-specific to most-generic
-# ---------------------------------------------------------------------------
-
 _CATEGORY_RULES: list[tuple[str, list[str]]] = [
     ("Utility",       ["electric", "nepa", "meter", "token", "phcn", "ekedc", "ibedc", "phed",
                        "water board", "water bill", "lwsc", "ikeja electric", "aedc", "bedc"]),

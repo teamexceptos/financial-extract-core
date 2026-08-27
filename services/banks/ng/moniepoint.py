@@ -72,8 +72,6 @@ class MoniepointExtractor(BaseBankExtractor):
     bank_code: str = "moniepoint"
     aliases: tuple[str, ...] = ("monie_point", "teamapt")
 
-    # ------------------------------------------------------------------ detect
-
     def detect(self, text: str) -> bool:
         head = text[:8000]
         head_lower = head.lower()
@@ -95,8 +93,6 @@ class MoniepointExtractor(BaseBankExtractor):
         # shapes. A single hit only means the account transacted *with* Moniepoint —
         # other banks' statements carry one in a narration — so require several.
         return len(_LEDGER_FINGERPRINT.findall(head)) >= 3
-
-    # ----------------------------------------------------------------- summary
 
     def extract_summary(self, text: str) -> TransactionSummary | None:
         head = self._normalize_text(text)[:6000]
@@ -155,8 +151,6 @@ class MoniepointExtractor(BaseBankExtractor):
         )
         return self._clean_number(m.group(1)) if m else None
 
-    # ---------------------------------------------------------------- extract
-
     def extract(
         self,
         text: str,
@@ -200,8 +194,6 @@ class MoniepointExtractor(BaseBankExtractor):
             records = [r for r in records if self._is_bill_transaction(r)]
 
         return normalized, records
-
-    # ------------------------------------------------------------- wide parser
 
     def _parse_wide_rows(self, lines: list[str]) -> list[dict[str, Any]]:
         """Parse Moniepoint's wide transaction export.
@@ -275,8 +267,6 @@ class MoniepointExtractor(BaseBankExtractor):
             return None
         parts = m.group(1).split(":")
         return ":".join([f"{int(parts[0]):02d}", *parts[1:]]) if parts else None
-
-    # ------------------------------------------------------------ block parser
 
     def _parse_blocks(self, lines: list[str]) -> list[dict[str, Any]]:
         """Parse the columnar layout, where each transaction spans several lines."""
@@ -355,8 +345,6 @@ class MoniepointExtractor(BaseBankExtractor):
             return None
         return f"{int(hour):02d}:{minute}"
 
-    # ------------------------------------------------------------- flat parser
-
     def _parse_flat_rows(self, lines: list[str]) -> list[dict[str, Any]]:
         """Parse rows that arrive collapsed onto a single line."""
         rows: list[dict[str, Any]] = []
@@ -386,8 +374,6 @@ class MoniepointExtractor(BaseBankExtractor):
                 "raw": line.strip(),
             })
         return rows
-
-    # ---------------------------------------------------------------- records
 
     def _to_record(self, row: dict[str, Any], source: str) -> TransactionRecord:
         debit = self._positive_amount(row["debit"])
