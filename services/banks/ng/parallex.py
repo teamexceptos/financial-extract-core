@@ -75,6 +75,7 @@ class ParallexExtractor(BaseBankExtractor):
                         ttype, deb_val, cred_val = classify_transaction_type(narration)
                         amount_val = deb_val or cred_val
 
+                    days_from_today, within_3_months = self._recency(date_val)
                     cat = categorise_transaction(narration)
                     meta: dict[str, Any] = {
                         "amount": amount_val,
@@ -82,6 +83,8 @@ class ParallexExtractor(BaseBankExtractor):
                         "credit": cred_val,
                         "transaction_type": ttype,
                         "date": date_val,
+                        "days_from_today": days_from_today,
+                        "is_within_3_months": within_3_months,
                         "category": cat,
                         "transaction_number": None,
                     }
@@ -91,13 +94,3 @@ class ParallexExtractor(BaseBankExtractor):
             records = [r for r in records if self._is_bill_transaction(r)]
 
         return normalized, records
-
-    def _parse_date(self, val: str) -> str | None:
-        m = re.search(r"(\d{1,2}[-/][A-Za-z0-9]{3}[-/]\d{2,4})", val)
-        if m:
-            try:
-                from dateutil import parser as dp
-                return dp.parse(m.group(1), fuzzy=True, dayfirst=True).date().isoformat()
-            except Exception:
-                return m.group(1)
-        return None

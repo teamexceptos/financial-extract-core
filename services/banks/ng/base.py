@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
+from datetime import date as _date_cls
 from typing import Any
 
 from models.transaction import TransactionMetadata, TransactionRecord, TransactionSummary
+from utils.date_recency import compute_date_recency
 
 BILL_CATEGORIES = {"Utility", "Cable TV", "Internet", "Cooking Gas", "Water", "Mobile", "Airtime", "Mobile Data"}
 
@@ -171,6 +173,37 @@ class BaseBankExtractor(ABC):
 
     def _is_bill_transaction(self, tx: TransactionRecord) -> bool:
         return tx.metadata.category in BILL_CATEGORIES
+
+    def _parse_date(self, val: str | None) -> str | None:
+        if not val:
+            return None
+        m = re.search(
+            r"(\d{4}-\d{2}-\d{2})T[\d:]+|"
+            r"(\d{4}-\d{2}-\d{2})|"
+            r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})|"
+            r"(\d{1,2}[-/][A-Za-z]{3}[-/]\d{2,4})|"
+            r"(\d{2}[-/]\d{2}[-/]\d{2,4})|"
+            r"(\d{1,2}[/-]\d{1,2}[/-]\d{4})",
+            val,
+        )
+        raw = None
+        if m:
+            raw = next((g for g in m.groups() if g), None)
+        if raw:
+            try:
+                from dateutil import parser as dp
+                return dp.parse(raw, fuzzy=True, dayfirst=True).date().isoformat()
+            except Exception:
+                return raw
+        return None
+
+    def _recency(self, day: str | None) -> tuple[int | None, bool | None]:
+        if not day:
+            return None, None
+        try:
+            return compute_date_recency(_date_cls.fromisoformat(day))
+        except Exception:
+            return None, None
 
     def _build_record(
         self,

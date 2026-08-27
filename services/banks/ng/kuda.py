@@ -18,12 +18,10 @@ canonical rendering, addressing cells by their header name.
 from __future__ import annotations
 
 import re
-from datetime import date as date_cls
 from typing import Any
 
 from models.transaction import TransactionRecord, TransactionSummary
 from services.banks.ng.base import BaseBankExtractor
-from utils.date_recency import compute_date_recency
 from utils.receipt_metadata import categorise_transaction
 
 _DATE = re.compile(r"\b(\d{2}/\d{2}/\d{2,4})\b")
@@ -144,7 +142,7 @@ class KudaExtractor(BaseBankExtractor):
         day = _DATE.search(cells[0])
         if not day:
             return None
-        date_val = self._parse_dmy_date(day.group(1))
+        date_val = self._parse_date(day.group(1))
         time_m = _TIME.search(cells[0])
 
         credit = self._amount(values.get("money in"))
@@ -165,7 +163,7 @@ class KudaExtractor(BaseBankExtractor):
         category = categorise_transaction(" ".join(filter(None, [category_col, to_from, description])))
         days_from_today, within_3_months = self._recency(date_val)
         raw_row = " | ".join(values.get(name, "") for name in columns) if columns \
-            else " | ".join(cells)   # readable rendering of the statement's own row
+            else " | ".join(cells)  # readable rendering of the statement's own row
 
         meta: dict[str, Any] = {
             "amount": debit or credit,
@@ -205,18 +203,3 @@ class KudaExtractor(BaseBankExtractor):
         if cleaned is None:
             return None
         return f"-{cleaned}" if m.group(0).strip().startswith("-") else cleaned
-
-    def _recency(self, day: str | None) -> tuple[int | None, bool | None]:
-        if not day:
-            return None, None
-        try:
-            return compute_date_recency(date_cls.fromisoformat(day))
-        except Exception:
-            return None, None
-
-    def _parse_dmy_date(self, val: str) -> str | None:
-        try:
-            from dateutil import parser as dp
-            return dp.parse(val, fuzzy=True, dayfirst=True).date().isoformat()
-        except Exception:
-            return val

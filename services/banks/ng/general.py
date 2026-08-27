@@ -122,7 +122,7 @@ class GeneralBankExtractor(BaseBankExtractor):
             if line_str.startswith("|"):
                 cols = [c.strip() for c in line_str.split("|")[1:-1]]
                 if len(cols) >= 3:
-                    date_val = self._find_date(" ".join(cols[:3]))
+                    date_val = self._parse_date(" ".join(cols[:3]))
                     if date_val or self._has_amount_pattern(cols):
                         result = self._parse_columns(cols, date_val)
                         if result:
@@ -170,7 +170,7 @@ class GeneralBankExtractor(BaseBankExtractor):
                     records.append(self._build_record(line_str, meta, source))
                 continue
 
-            date_val = self._find_date(line_str)
+            date_val = self._parse_date(line_str)
             if date_val and (self._line_has_amount(line_str) or pending_date is None):
                 flush_pending()
                 amounts = self._extract_all_amounts(line_str)
@@ -315,7 +315,7 @@ class GeneralBankExtractor(BaseBankExtractor):
     def _parse_columns(self, cols: list[str], date_val: str | None):
         joined = " ".join(cols)
         if not date_val:
-            date_val = self._find_date(joined)
+            date_val = self._parse_date(joined)
         non_empty = [c for c in cols if c]
         amounts_cols: list[tuple[int, str]] = []
         for i, c in enumerate(cols):
@@ -387,7 +387,7 @@ class GeneralBankExtractor(BaseBankExtractor):
         for i, c in enumerate(cols):
             if i in amount_idxs:
                 continue
-            if i == 0 and date_val and self._find_date(c):
+            if i == 0 and date_val and self._parse_date(c):
                 continue
             if c.strip():
                 desc_parts.append(c.strip())
@@ -422,7 +422,7 @@ class GeneralBankExtractor(BaseBankExtractor):
                 break
         if not dt_raw or not rest:
             return None
-        dt = self._find_date(dt_raw)
+        dt = self._parse_date(dt_raw)
         if not dt:
             return None
 
@@ -439,7 +439,6 @@ class GeneralBankExtractor(BaseBankExtractor):
         for s, e, g in reversed(trailing):
             if e == nxt_end or (e < nxt_end and rest[e:nxt_end].strip() == ""):
                 right_edge.append((s, e, g))
-                gap = rest[s:e]
                 prev_idx = s
                 while prev_idx > 0 and rest[prev_idx - 1] in " \t":
                     prev_idx -= 1
@@ -464,23 +463,3 @@ class GeneralBankExtractor(BaseBankExtractor):
 
         d_val, c_val, amt, ttype = self._resolve_amounts(amounts, desc)
         return dt, d_val, c_val, amt, ttype, desc, None
-
-    def _find_date(self, text: str) -> str | None:
-        patterns = [
-            r"(\d{4}-\d{2}-\d{2})T[\d:]+",
-            r"(\d{4}-\d{2}-\d{2})",
-            r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})",
-            r"(\d{1,2}[-/][A-Za-z]{3}[-/]\d{2,4})",
-            r"(\d{2}[-/]\d{2}[-/]\d{2,4})",
-            r"(\d{1,2}[/-]\d{1,2}[/-]\d{4})",
-        ]
-        for p in patterns:
-            m = re.search(p, text)
-            if m:
-                raw = m.group(1)
-                try:
-                    from dateutil import parser as dp
-                    return dp.parse(raw, fuzzy=True, dayfirst=True).date().isoformat()
-                except Exception:
-                    return raw
-        return None

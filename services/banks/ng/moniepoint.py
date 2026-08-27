@@ -20,12 +20,10 @@ fallback for pasted text and OCR output where a whole row lands on one line.
 from __future__ import annotations
 
 import re
-from datetime import date as date_cls
-from typing import Any, Iterable
+from typing import Any
 
 from models.transaction import TransactionRecord, TransactionSummary
 from services.banks.ng.base import BaseBankExtractor
-from utils.date_recency import compute_date_recency
 from utils.receipt_metadata import categorise_transaction, classify_transaction_type
 
 # ``2025-10-07T09:`` — the first physical line of a wrapped Date cell.
@@ -424,11 +422,3 @@ class MoniepointExtractor(BaseBankExtractor):
         if cleaned is None:
             return None
         return cleaned if float(cleaned) != 0.0 else None
-
-    def _recency(self, day: str | None) -> tuple[int | None, bool | None]:
-        if not day:
-            return None, None
-        try:
-            return compute_date_recency(date_cls.fromisoformat(day))
-        except Exception:
-            return None, None

@@ -119,6 +119,7 @@ class OPayExtractor(BaseBankExtractor):
                     ttype, debit, credit = self._parse_amount(amount_col, narration)
                     ref = cols[6] if len(cols) > 6 else (cols[-1] if len(cols) > 4 else None)
 
+                    days_from_today, within_3_months = self._recency(date_val)
                     cat = categorise_transaction(narration)
                     meta: dict[str, Any] = {
                         "amount": debit or credit,
@@ -126,6 +127,8 @@ class OPayExtractor(BaseBankExtractor):
                         "credit": credit,
                         "transaction_type": ttype,
                         "date": date_val,
+                        "days_from_today": days_from_today,
+                        "is_within_3_months": within_3_months,
                         "category": cat,
                         "transaction_number": ref,
                     }
@@ -146,6 +149,7 @@ class OPayExtractor(BaseBankExtractor):
                 ref_match = re.search(r"(\d{15,40})", rest)
                 ref = ref_match.group(1) if ref_match else None
 
+                days_from_today, within_3_months = self._recency(date_val)
                 cat = categorise_transaction(narration)
                 meta = {
                     "amount": debit or credit,
@@ -153,6 +157,8 @@ class OPayExtractor(BaseBankExtractor):
                     "credit": credit,
                     "transaction_type": ttype,
                     "date": date_val,
+                    "days_from_today": days_from_today,
+                    "is_within_3_months": within_3_months,
                     "category": cat,
                     "transaction_number": ref,
                 }
@@ -162,16 +168,6 @@ class OPayExtractor(BaseBankExtractor):
             records = [r for r in records if self._is_bill_transaction(r)]
 
         return normalized, records
-
-    def _parse_date(self, val: str) -> str | None:
-        m = re.search(r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})", val)
-        if m:
-            try:
-                from dateutil import parser as dp
-                return dp.parse(m.group(1), fuzzy=True).date().isoformat()
-            except Exception:
-                return m.group(1)
-        return None
 
     def _parse_amount(self, val: str, narration: str) -> tuple[str | None, str | None, str | None]:
         val_clean = val.strip().replace(",", "").replace("₦", "").strip()

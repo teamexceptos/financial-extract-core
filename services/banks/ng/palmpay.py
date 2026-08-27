@@ -126,12 +126,15 @@ class PalmPayExtractor(BaseBankExtractor):
                     ref = cols[7] if len(cols) > 7 else (cols[-1] if len(cols) > 5 else None)
                     cat = categorise_transaction(narration)
 
+                    days_from_today, within_3_months = self._recency(date_val)
                     meta: dict[str, Any] = {
                         "amount": amount_val,
                         "debit": debit_val,
                         "credit": credit_val,
                         "transaction_type": ttype,
                         "date": date_val,
+                        "days_from_today": days_from_today,
+                        "is_within_3_months": within_3_months,
                         "category": cat,
                         "transaction_number": ref,
                     }
@@ -141,13 +144,3 @@ class PalmPayExtractor(BaseBankExtractor):
             records = [r for r in records if self._is_bill_transaction(r)]
 
         return normalized, records
-
-    def _parse_date(self, val: str) -> str | None:
-        m = re.search(r"(\d{1,2}\s+[A-Za-z]{3}\s+\d{4})", val)
-        if m:
-            try:
-                from dateutil import parser as dp
-                return dp.parse(m.group(1), fuzzy=True).date().isoformat()
-            except Exception:
-                return m.group(1)
-        return None
